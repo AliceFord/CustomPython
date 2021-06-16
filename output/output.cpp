@@ -1,5 +1,8 @@
 #include <bits/stdc++.h>
 
 int main() {
-std::cout << "hi\n";std::cout << 1;2+4;
+int test = 4;
+std::cout << test;
+std::cout << 4+4;
+
 }

@@ -8,8 +8,8 @@ Tags:
 <ins> - any line of code separated by semicolons, an instruction
 <num> - a number
 <str> - a string
-<var> - a variable (calling one)
-<vdef> - defining a variable
+<vc> - a variable call
+<vd> - a variable definition, always has <type>, <name> and <data> tags.
 <op> - an operand (e.g. +, -, <<, >>, ^ etc)
 <fc> - a function call, always has <name> tag and <params> tag.
 <fd> - a function definition

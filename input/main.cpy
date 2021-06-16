@@ -1,3 +1,3 @@
-PRINT("hi\n");
-PRINT(1);
-2+4;
+int test = 4;
+PRINT(test);
+PRINT(4+4);

@@ -3,6 +3,7 @@ import os
 
 KNOWN_FUNCTIONS = {"PRINT": "std::cout"}
 LEFT_SHIFT_FUNCS = ["std::cout"]
+KNOWN_TYPES = {"string": "std::string"}
 
 
 class Transpile:
@@ -53,12 +54,20 @@ class Transpile:
 						code = code.rstrip(",")
 				if not useLeftShift:
 					code += ")"
+			elif ins.tag == "vd":
+				try:
+					code += KNOWN_TYPES[ins.find("type").text] + " "
+				except KeyError:
+					code += ins.find("type").text + " "
+				code += ins.find("name").text + " = "
+				code += self.transpileRecursive(ins.find("data"))
+			elif ins.tag == "vc":
+				code += ins.text
 			else:
-				code += self.decodeInstruction(tree)
-				break
+				code += self.decodeInstruction(ins)
 
 		if outer:
-			code += ";"
+			code += ";\n"
 		return code
 
 	def transpile(self):
@@ -69,14 +78,13 @@ class Transpile:
 		return code
 
 	@staticmethod
-	def decodeInstruction(outerIns):
+	def decodeInstruction(ins):
 		code = ""
-		for ins in outerIns:
-			if ins.tag == "num":
-				code += ins.text
-			if ins.tag == "op":
-				code += ins.text
-			if ins.tag == "str":
-				code += ins.text
+		if ins.tag == "num":
+			code += ins.text
+		if ins.tag == "op":
+			code += ins.text
+		if ins.tag == "str":
+			code += ins.text
 		return code
 

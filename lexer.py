@@ -1,5 +1,6 @@
 import lxml.etree as ET
 import re
+import string
 
 
 class CustomPythonLexer:
@@ -31,12 +32,14 @@ class CustomPythonLexer:
 		self.is_num = False
 		self.is_op = False
 		self.is_str = False
-		self.is_vdef = False
-		self.flags = ["num", "op", "str"]
+		self.is_vc = False
+		self.flags = ["num", "op", "str", "vc"]
 		self.startElem = -1
 		funcChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*?)\((.*)\)")
+		vdChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*) ([a-zA-Z][a-zA-Z0-9]*)[ ]*=[ ]*(.*)")
 
 		isFunc = funcChecker.match(ins)
+		isVd = vdChecker.match(ins)
 		if isFunc:
 			fcTag = ET.SubElement(parentElement, "fc")
 			nameTag = ET.SubElement(fcTag, "name")
@@ -45,27 +48,41 @@ class CustomPythonLexer:
 			for i, param in enumerate(isFunc.group(2).split(",")):
 				currentParamTag = ET.SubElement(paramsTag, "_" + str(i))
 				self.decodeInstruction(param, currentParamTag)
+		elif isVd:
+			vdTag = ET.SubElement(parentElement, "vd")
+			typeTag = ET.SubElement(vdTag, "type")
+			typeTag.text = isVd.group(1)
+			nameTag = ET.SubElement(vdTag, "name")
+			nameTag.text = isVd.group(2)
+			dataTag = ET.SubElement(vdTag, "data")
+			self.decodeInstruction(isVd.group(3), dataTag)
 		else:
 			for i, c in enumerate(ins):
 				if not self.is_str:
+					self.currentlyFound = False
 					try:
 						int(c)
-						self.foundElement("num", parentElement, ins, self.startElem, i)
+						if not self.is_vc:
+							self.foundElement("num", parentElement, ins, self.startElem, i)
 					except ValueError:
-						self.setFlag("num", parentElement, ins, self.startElem, i)
+						pass
 
 					if c in ["+", "-", "*", "/"]:
 						self.foundElement("op", parentElement, ins, self.startElem, i)
 					else:
-						self.setFlag("op", parentElement, ins, self.startElem, i)
+						pass
+
+					if not self.currentlyFound:
+						if c in string.ascii_letters + string.digits:
+							self.foundElement("vc", parentElement, ins, self.startElem, i)
+
+					if c == " ":
+						self.setAllFlagsExcept(None, parentElement, ins, self.startElem, i)
 
 				if c == "\"":
 					self.foundElement("str", parentElement, ins, self.startElem, i)
 				else:
 					pass
-
-				if c == " ":
-					self.setAllFlagsExcept(None, parentElement, ins, self.startElem, i)
 
 			self.setAllFlagsExcept(None, parentElement, ins, self.startElem)
 
@@ -74,6 +91,8 @@ class CustomPythonLexer:
 		if not getattr(self, "is_" + flag):
 			setattr(self, "is_" + flag, True)
 			self.startElem = endRange
+
+		self.currentlyFound = True
 
 	def setFlag(self, flag, element, ins, startRange, endRange):
 		if getattr(self, "is_" + flag):
@@ -90,6 +109,7 @@ class CustomPythonLexer:
 				if getattr(self, "is_" + overallFlag):
 					tag = ET.SubElement(element, overallFlag)
 					tag.text = ins[startRange:endRange]
+				setattr(self, "is_" + overallFlag, False)
 		else:
 			for overallFlag in self.flags:
 				if flag != overallFlag:
