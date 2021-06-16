@@ -19,65 +19,65 @@ class CustomPythonLexer:
 			for i, dp in enumerate(data):
 				data[i] = dp.replace("\n", "")
 
-			funcChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*?)\((.*?)\)")
-
 			for ins in data:
 				insTag = ET.SubElement(main, "ins")
-				isFunc = funcChecker.match(ins)
-				if isFunc:
-					fcTag = ET.SubElement(insTag, "fc")
-					nameTag = ET.SubElement(fcTag, "name")
-					nameTag.text = isFunc.group(1)
-					paramsTag = ET.SubElement(fcTag, "params")
-					for i, param in enumerate(isFunc.group(2).split(",")):
-						currentParamTag = ET.SubElement(paramsTag, "_" + str(i))
-						self.decodeInstruction(param, currentParamTag)
-				else:
-					self.decodeInstruction(ins, insTag)
+				self.decodeInstruction(ins, insTag)
 
 		ET.dump(main)  # Print
 		return ET.tostring(main)
 		#return "<main><ins><fc><name>PRINT</name><params><_1><num>1</num><op>*</op><num>1</num></_1></params></fc></ins><ins><fc><name>PRINT</name><params><_1><num>1</num><op>+</op><num>1</num></_1></params></fc></ins></main>"
 
-	@staticmethod
-	def decodeInstruction(ins, parentElement):
+	def decodeInstruction(self, ins, parentElement):
 		isNum = False
 		isOp = False
 		startElem = -1
-		for i, c in enumerate(ins):
-			try:
-				int(c)
-				if isOp:
-					opTag = ET.SubElement(parentElement, "op")
-					opTag.text = ins[startElem:i]
-				isOp = False
-				if not isNum:
-					isNum = True
-					startElem = i
-			except ValueError:
-				if isNum:
-					numTag = ET.SubElement(parentElement, "num")
-					numTag.text = ins[startElem:i]
-				isNum = False
+		funcChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*?)\((.*)\)")
 
-			if c in ["+", "-", "*", "/"]:
-				if isNum:
-					numTag = ET.SubElement(parentElement, "num")
-					numTag.text = ins[startElem:i]
-				isNum = False
-				if not isOp:
-					isOp = True
-					startElem = i
-			else:
-				if isOp:
-					opTag = ET.SubElement(parentElement, "op")
-					opTag.text = ins[startElem:i]
-				isOp = False
+		isFunc = funcChecker.match(ins)
+		if isFunc:
+			fcTag = ET.SubElement(parentElement, "fc")
+			nameTag = ET.SubElement(fcTag, "name")
+			nameTag.text = isFunc.group(1)
+			paramsTag = ET.SubElement(fcTag, "params")
+			for i, param in enumerate(isFunc.group(2).split(",")):
+				currentParamTag = ET.SubElement(paramsTag, "_" + str(i))
+				self.decodeInstruction(param, currentParamTag)
+		else:
+			for i, c in enumerate(ins):
+				try:
+					int(c)
+					if isOp:
+						opTag = ET.SubElement(parentElement, "op")
+						opTag.text = ins[startElem:i]
+					isOp = False
+					if not isNum:
+						isNum = True
+						startElem = i
+				except ValueError:
+					if isNum:
+						numTag = ET.SubElement(parentElement, "num")
+						numTag.text = ins[startElem:i]
+					isNum = False
 
-		if isOp:
-			opTag = ET.SubElement(parentElement, "op")
-			opTag.text = ins[startElem:]
+				if c in ["+", "-", "*", "/"]:
+					if isNum:
+						numTag = ET.SubElement(parentElement, "num")
+						numTag.text = ins[startElem:i]
+					isNum = False
+					if not isOp:
+						isOp = True
+						startElem = i
+				else:
+					if isOp:
+						opTag = ET.SubElement(parentElement, "op")
+						opTag.text = ins[startElem:i]
+					isOp = False
 
-		if isNum:
-			numTag = ET.SubElement(parentElement, "num")
-			numTag.text = ins[startElem:]
+			if isOp:
+				opTag = ET.SubElement(parentElement, "op")
+				opTag.text = ins[startElem:]
+
+			if isNum:
+				numTag = ET.SubElement(parentElement, "num")
+				numTag.text = ins[startElem:]
+

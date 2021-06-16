@@ -10,6 +10,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\test.xml">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\transpiler.py">
           <value>
             <Attribute>
