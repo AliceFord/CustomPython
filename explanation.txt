@@ -1,0 +1,14 @@
+CustomPython
+
+LEXER:
+Takes code, converts to xml
+Each line (semicolon delimited) is an <ins> tag
+
+Tags:
+<ins> - any line of code separated by semicolons
+<num> - a number
+<str> - a string
+<var> - a variable
+<op> - an operand (e.g. +, -, <<, >>, ^ etc)
+<fc> - a function call, always has <name> tag and <params> tag.
+<fd> - a function definition
