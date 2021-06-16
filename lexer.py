@@ -37,9 +37,11 @@ class CustomPythonLexer:
 		self.startElem = -1
 		funcChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*?)\((.*)\)")
 		vdChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*) ([a-zA-Z][a-zA-Z0-9]*)[ ]*=[ ]*(.*)")
+		vrdChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*)[ ]*=[ ]*(.*)")
 
 		isFunc = funcChecker.match(ins)
 		isVd = vdChecker.match(ins)
+		isVrd = vrdChecker.match(ins)
 		if isFunc:
 			fcTag = ET.SubElement(parentElement, "fc")
 			nameTag = ET.SubElement(fcTag, "name")
@@ -56,6 +58,12 @@ class CustomPythonLexer:
 			nameTag.text = isVd.group(2)
 			dataTag = ET.SubElement(vdTag, "data")
 			self.decodeInstruction(isVd.group(3), dataTag)
+		elif isVrd:
+			vrdTag = ET.SubElement(parentElement, "vrd")
+			nameTag = ET.SubElement(vrdTag, "name")
+			nameTag.text = isVrd.group(1)
+			dataTag = ET.SubElement(vrdTag, "data")
+			self.decodeInstruction(isVrd.group(2), dataTag)
 		else:
 			for i, c in enumerate(ins):
 				if not self.is_str:

@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 import os
 
-KNOWN_FUNCTIONS = {"PRINT": "std::cout"}
+KNOWN_FUNCTIONS = {"print": "std::cout"}
 LEFT_SHIFT_FUNCS = ["std::cout"]
 KNOWN_TYPES = {"string": "std::string"}
 
@@ -63,6 +63,9 @@ class Transpile:
 				code += self.transpileRecursive(ins.find("data"))
 			elif ins.tag == "vc":
 				code += ins.text
+			elif ins.tag == "vrd":
+				code += ins.find("name").text + " = "
+				code += self.transpileRecursive(ins.find("data"))
 			else:
 				code += self.decodeInstruction(ins)
 
