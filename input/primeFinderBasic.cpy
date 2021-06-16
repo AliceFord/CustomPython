@@ -1,0 +1,17 @@
+int count = 3;
+int n = 100;
+while count < n;
+bool isPrime = True;
+int x = 2;
+while x < count;
+if count % x == 0;
+isPrime = False;
+break;
+endif;
+x++;
+endwhile;
+if isPrime;
+print(count, "\n");
+endif;
+count++;
+endwhile;

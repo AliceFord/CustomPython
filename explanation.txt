@@ -14,3 +14,5 @@ Tags:
 <op> - an operand (e.g. +, -, <<, >>, ^ etc)
 <fc> - a function call, always has <name> tag and <params> tag.
 <fd> - a function definition
+<while> - a while loop, contains <cond> and <data> tags.
+<if> - an if statement, contains <cond> and <data> tags (else if and else should be nested for now).

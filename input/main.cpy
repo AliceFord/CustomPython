@@ -1,4 +1,5 @@
-int test = 4;
-print(test + 4, "\n");
-test = 6;
-print(test, "\n");
+int x = 1;
+if x == 1;
+print(1);
+endif;
+print(3);

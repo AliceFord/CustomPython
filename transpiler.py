@@ -22,7 +22,9 @@ class Transpile:
 	def transpileRecursive(self, tree, outer=False):
 		code = ""
 		for ins in tree:
-			if ins.tag == "fc":
+			if ins.tag == "ins":
+				code += self.transpileRecursive(ins, True)
+			elif ins.tag == "fc":
 				useLeftShift = False
 				for key, val in KNOWN_FUNCTIONS.items():
 					if ins.find("name").text == key:
@@ -34,7 +36,7 @@ class Transpile:
 					code += ins.find("name").text
 
 				if useLeftShift:
-					code += " << "
+					code += " << ("
 				else:
 					code += "("
 
@@ -43,13 +45,13 @@ class Transpile:
 					paramUsed = True
 					code += self.transpileRecursive(param)
 					if useLeftShift:
-						code += " << "
+						code += ") << ("
 					else:
 						code += ","
 
 				if paramUsed:
 					if useLeftShift:
-						code = code.rstrip(" << ")
+						code = code.rstrip(" << (")
 					else:
 						code = code.rstrip(",")
 				if not useLeftShift:
@@ -66,6 +68,16 @@ class Transpile:
 			elif ins.tag == "vrd":
 				code += ins.find("name").text + " = "
 				code += self.transpileRecursive(ins.find("data"))
+			elif ins.tag == "while":
+				code += "while (" + self.transpileRecursive(ins.find("cond")) + ") {\n"
+				code += self.transpileRecursive(ins.find("data"))
+				code += "}"
+			elif ins.tag == "break":
+				code += "break"
+			elif ins.tag == "if":
+				code += "if (" + self.transpileRecursive(ins.find("cond")) + ") {\n"
+				code += self.transpileRecursive(ins.find("data"))
+				code += "}"
 			else:
 				code += self.decodeInstruction(ins)
 

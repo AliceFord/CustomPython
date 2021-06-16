@@ -10,7 +10,9 @@ class CustomPythonLexer:
 	def doLexing(self):
 		main = ET.Element("main")
 		with open(self.file) as f:
-			data = f.read().split(";")
+			data = f.read()
+			data = self.expandMacros(data)
+			data = data.split(";")
 			while True:
 				try:
 					data.remove('')
@@ -20,13 +22,33 @@ class CustomPythonLexer:
 			for i, dp in enumerate(data):
 				data[i] = dp.replace("\n", "")
 
+			nestCounter = 0
+			nestTag = None
+
 			for ins in data:
-				insTag = ET.SubElement(main, "ins")
-				self.decodeInstruction(ins, insTag)
+				if nestCounter > 0:
+					insTag = ET.SubElement(nestTag, "ins")
+					chosenParent = nestTag
+					flags = self.decodeInstruction(ins, insTag)
+				else:
+					insTag = ET.SubElement(main, "ins")
+					chosenParent = main
+					flags = self.decodeInstruction(ins, insTag)
+				prevWhileCounter = nestCounter
+				nestCounter += flags["nest"]
+				if nestCounter > prevWhileCounter:
+					nestTag = flags["tag"]
+				elif nestCounter < prevWhileCounter:
+					nestTag = flags["tag"]
+
+				if nestCounter < prevWhileCounter and not flags["break"]:
+					chosenParent.remove(insTag)
 
 		with open("test.xml", "wb") as f: f.write(ET.tostring(main, pretty_print=True))
 		return ET.tostring(main)
-		#return "<main><ins><fc><name>PRINT</name><params><_1><num>1</num><op>*</op><num>1</num></_1></params></fc></ins><ins><fc><name>PRINT</name><params><_1><num>1</num><op>+</op><num>1</num></_1></params></fc></ins></main>"
+
+	def expandMacros(self, data):
+		return data
 
 	def decodeInstruction(self, ins, parentElement):
 		self.is_num = False
@@ -35,14 +57,49 @@ class CustomPythonLexer:
 		self.is_vc = False
 		self.flags = ["num", "op", "str", "vc"]
 		self.startElem = -1
+		whileDepth = 0
 		funcChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*?)\((.*)\)")
 		vdChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*) ([a-zA-Z][a-zA-Z0-9]*)[ ]*=[ ]*(.*)")
 		vrdChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*)[ ]*=[ ]*(.*)")
+		whileChecker = re.compile("while[ ]*(.*)")
+		ifChecker = re.compile("if[ ]+(.*)")
+		conditionalChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*)[ ]*=[=]+?[ ]*(.*)")
+
+		ins = ins.replace("True", "true").replace("False", "false")
 
 		isFunc = funcChecker.match(ins)
 		isVd = vdChecker.match(ins)
 		isVrd = vrdChecker.match(ins)
-		if isFunc:
+		isWhile = whileChecker.match(ins)
+		isIf = ifChecker.match(ins)
+		isConditional = conditionalChecker.match(ins)
+		if isWhile:
+			whileTag = ET.SubElement(parentElement, "while")
+			condTag = ET.SubElement(whileTag, "cond")
+			self.decodeInstruction(isWhile.group(1), condTag)
+			dataTag = ET.SubElement(whileTag, "data")
+			return {"nest": 1, "tag": dataTag}
+		elif isIf:
+			ifTag = ET.SubElement(parentElement, "if")
+			condTag = ET.SubElement(ifTag, "cond")
+			self.decodeInstruction(isIf.group(1), condTag)
+			dataTag = ET.SubElement(ifTag, "data")
+			return {"nest": 1, "tag": dataTag}
+		elif ins == "endwhile":
+			parentElement.attrib["remove"] = ""
+			try:
+				return {"nest": -1, "break": False, "tag": parentElement.getparent().getparent().getparent().getparent()}
+			except AttributeError:
+				return {"nest": -1, "break": False, "tag": "ignored"}
+		elif ins == "break":
+			breakTag = ET.SubElement(parentElement, "break")
+		elif ins == "endif":
+			parentElement.attrib["remove"] = ""
+			try:
+				return {"nest": -1, "break": False, "tag": parentElement.getparent().getparent().getparent().getparent()}
+			except AttributeError:
+				return {"nest": -1, "break": False, "tag": "ignored"}
+		elif isFunc:
 			fcTag = ET.SubElement(parentElement, "fc")
 			nameTag = ET.SubElement(fcTag, "name")
 			nameTag.text = isFunc.group(1)
@@ -58,7 +115,7 @@ class CustomPythonLexer:
 			nameTag.text = isVd.group(2)
 			dataTag = ET.SubElement(vdTag, "data")
 			self.decodeInstruction(isVd.group(3), dataTag)
-		elif isVrd:
+		elif isVrd and not isConditional:
 			vrdTag = ET.SubElement(parentElement, "vrd")
 			nameTag = ET.SubElement(vrdTag, "name")
 			nameTag.text = isVrd.group(1)
@@ -75,7 +132,7 @@ class CustomPythonLexer:
 					except ValueError:
 						pass
 
-					if c in ["+", "-", "*", "/"]:
+					if c in ["+", "-", "*", "/", "<", ">", "=", "%"]:
 						self.foundElement("op", parentElement, ins, self.startElem, i)
 					else:
 						pass
@@ -93,6 +150,8 @@ class CustomPythonLexer:
 					pass
 
 			self.setAllFlagsExcept(None, parentElement, ins, self.startElem)
+
+		return {"nest": 0}
 
 	def foundElement(self, flag, parent, ins, startRange, endRange):
 		self.setAllFlagsExcept(flag, parent, ins, startRange, endRange)
