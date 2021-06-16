@@ -76,5 +76,7 @@ class Transpile:
 				code += ins.text
 			if ins.tag == "op":
 				code += ins.text
+			if ins.tag == "str":
+				code += ins.text
 		return code
 
