@@ -5,6 +5,7 @@ import string
 
 class CustomPythonLexer:
 	def __init__(self, file):
+		self.fors = []
 		self.file = file
 
 	def doLexing(self):
@@ -20,7 +21,7 @@ class CustomPythonLexer:
 					break
 
 			for i, dp in enumerate(data):
-				data[i] = dp.replace("\n", "")
+				data[i] = dp.replace("\n", "").replace("\t", "")
 
 			nestCounter = 0
 			nestTag = None
@@ -47,7 +48,32 @@ class CustomPythonLexer:
 		with open("test.xml", "wb") as f: f.write(ET.tostring(main, pretty_print=True))
 		return ET.tostring(main)
 
+	def placeForLoop(self, m: re.Match[string]):
+		start = m.group(1) + ";\nwhile" + m.group(2)
+		message = m.string
+		message = message[:m.span()[0]] + start + message[m.span()[1]:]
+		endCounter = 0
+		for i, line in enumerate(message.split(";")):
+			if "for" in line and "(" in line:
+				endCounter += 1
+			if "endfor" in line:
+				endCounter -= 1
+
+				if endCounter < 0:
+					message = message.split(";")
+					message[i] = "\nendwhile"
+					message.insert(i, "\n" + m.group(3))
+					message = ';'.join(message)
+					break
+		return message
+
 	def expandMacros(self, data):
+		while True:
+			m = re.search("for[ ]*\((.*?);(.*?);(.*?)\)", data)
+			if m is None:
+				break
+			data = self.placeForLoop(m)
+
 		return data
 
 	def decodeInstruction(self, ins, parentElement):
@@ -57,22 +83,25 @@ class CustomPythonLexer:
 		self.is_vc = False
 		self.flags = ["num", "op", "str", "vc"]
 		self.startElem = -1
-		whileDepth = 0
 		funcChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*?)\((.*)\)")
 		vdChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*) ([a-zA-Z][a-zA-Z0-9]*)[ ]*=[ ]*(.*)")
+		vdarrChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*)\[\] ([a-zA-Z][a-zA-Z0-9]*)[ ]*=[ ]*(.*)")
 		vrdChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*)[ ]*=[ ]*(.*)")
 		whileChecker = re.compile("while[ ]*(.*)")
 		ifChecker = re.compile("if[ ]+(.*)")
 		conditionalChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*)[ ]*=[=]+?[ ]*(.*)")
+		arrChecker = re.compile("\[(.*)\]")
 
 		ins = ins.replace("True", "true").replace("False", "false")
 
 		isFunc = funcChecker.match(ins)
 		isVd = vdChecker.match(ins)
+		isVdarr = vdarrChecker.match(ins)
 		isVrd = vrdChecker.match(ins)
 		isWhile = whileChecker.match(ins)
 		isIf = ifChecker.match(ins)
 		isConditional = conditionalChecker.match(ins)
+		isArr = arrChecker.match(ins)
 		if isWhile:
 			whileTag = ET.SubElement(parentElement, "while")
 			condTag = ET.SubElement(whileTag, "cond")
@@ -115,12 +144,26 @@ class CustomPythonLexer:
 			nameTag.text = isVd.group(2)
 			dataTag = ET.SubElement(vdTag, "data")
 			self.decodeInstruction(isVd.group(3), dataTag)
+		elif isVdarr:
+			vdTag = ET.SubElement(parentElement, "vd")
+			typeTag = ET.SubElement(vdTag, "type")
+			typeTag2 = ET.SubElement(typeTag, "type")
+			typeTag2.text = isVdarr.group(1)
+			arrTag = ET.SubElement(typeTag, "arr")
+			nameTag = ET.SubElement(vdTag, "name")
+			nameTag.text = isVdarr.group(2)
+			dataTag = ET.SubElement(vdTag, "data")
+			self.decodeInstruction(isVdarr.group(3), dataTag)
 		elif isVrd and not isConditional:
 			vrdTag = ET.SubElement(parentElement, "vrd")
 			nameTag = ET.SubElement(vrdTag, "name")
 			nameTag.text = isVrd.group(1)
 			dataTag = ET.SubElement(vrdTag, "data")
 			self.decodeInstruction(isVrd.group(2), dataTag)
+		elif isArr:
+			arrTag = ET.SubElement(parentElement, "arr")
+			for element in isArr.group(1).split(","):
+				self.decodeInstruction(element, arrTag)
 		else:
 			for i, c in enumerate(ins):
 				if not self.is_str:

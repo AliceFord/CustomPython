@@ -1,0 +1,17 @@
+int n = 100;
+bool[] a = [];
+for (int i = 0; i < n; i++);
+a.push_back(True);
+endfor;
+for (i = 2; i < ceil(sqrt(n)); i++);
+if a[i];
+for (int j = pow(i, 2); j < n; j += i);
+a[j] = False;
+endfor;
+endif;
+endfor;
+for (i = 2; i < a.size(); i++);
+if a[i];
+print(i, "\n");
+endif;
+endfor;

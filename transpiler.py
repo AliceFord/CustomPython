@@ -57,10 +57,16 @@ class Transpile:
 				if not useLeftShift:
 					code += ")"
 			elif ins.tag == "vd":
-				try:
-					code += KNOWN_TYPES[ins.find("type").text] + " "
-				except KeyError:
-					code += ins.find("type").text + " "
+				if ins.find("type").text is not None:
+					try:
+						code += KNOWN_TYPES[ins.find("type").text] + " "
+					except KeyError:
+						code += ins.find("type").text + " "
+				else:
+					try:
+						code += "std::vector<" + KNOWN_TYPES[ins.find("type").find("type").text] + "> "
+					except KeyError:
+						code += "std::vector<" + ins.find("type").find("type").text + "> "
 				code += ins.find("name").text + " = "
 				code += self.transpileRecursive(ins.find("data"))
 			elif ins.tag == "vc":
@@ -78,8 +84,16 @@ class Transpile:
 				code += "if (" + self.transpileRecursive(ins.find("cond")) + ") {\n"
 				code += self.transpileRecursive(ins.find("data"))
 				code += "}"
-			else:
-				code += self.decodeInstruction(ins)
+			elif ins.tag == "arr":
+				code += "{"
+				code += self.transpileRecursive(ins)
+				code += "}"
+			elif ins.tag == "num":
+				code += ins.text
+			elif ins.tag == "op":
+				code += ins.text
+			elif ins.tag == "str":
+				code += ins.text
 
 		if outer:
 			code += ";\n"
@@ -91,15 +105,3 @@ class Transpile:
 		for mainIns in root:
 			code += self.transpileRecursive(mainIns, True)
 		return code
-
-	@staticmethod
-	def decodeInstruction(ins):
-		code = ""
-		if ins.tag == "num":
-			code += ins.text
-		if ins.tag == "op":
-			code += ins.text
-		if ins.tag == "str":
-			code += ins.text
-		return code
-
