@@ -83,7 +83,7 @@ class CustomPythonLexer:
 		self.is_vc = False
 		self.flags = ["num", "op", "str", "vc"]
 		self.startElem = -1
-		fdChecker = re.compile("(.*?) (.*?)\((.*?)\)")
+		fdChecker = re.compile("(.*?) func (.*?)\((.*?)\)")
 		funcChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*?)\((.*)\)$")
 		funcChecker2 = re.compile("([a-zA-Z][a-zA-Z0-9]*?)\((.*)\)")
 		vdChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*) ([a-zA-Z][a-zA-Z0-9]*)[ ]*=[ ]*(.*)")
@@ -107,23 +107,7 @@ class CustomPythonLexer:
 		isConditional = conditionalChecker.match(ins)
 		isArr = arrChecker.match(ins)
 		isReturn = returnChecker.match(ins)
-		if isFd:
-			fdTag = ET.SubElement(parentElement, "fd")
-			typeTag = ET.SubElement(fdTag, "type")
-			typeTag.text = isFd.group(1)
-			nameTag = ET.SubElement(fdTag, "name")
-			nameTag.text = isFd.group(2)
-			paramsTag = ET.SubElement(fdTag, "params")
-			for i, param in enumerate(isFd.group(3).split(",")):
-				param = self.stripSpaces(param)
-				currentParamTag = ET.SubElement(paramsTag, "_" + str(i))
-				currentTypeTag = ET.SubElement(currentParamTag, "type")
-				currentTypeTag.text = param.split(" ")[0]
-				currentNameTag = ET.SubElement(currentParamTag, "name")
-				currentNameTag.text = param.split(" ")[1]
-			dataTag = ET.SubElement(fdTag, "data")
-			return {"nest": 1, "tag": dataTag}
-		elif isWhile:
+		if isWhile:
 			whileTag = ET.SubElement(parentElement, "while")
 			condTag = ET.SubElement(whileTag, "cond")
 			self.decodeInstruction(isWhile.group(1), condTag)
@@ -165,6 +149,8 @@ class CustomPythonLexer:
 			nameTag.text = isFunc.group(1)
 			paramsTag = ET.SubElement(fcTag, "params")
 			for i, param in enumerate(self.splitByOuterSymbol(isFunc.group(2), ",")):
+				if param == "":
+					continue
 				currentParamTag = ET.SubElement(paramsTag, "_" + str(i))
 				self.decodeInstruction(param, currentParamTag)
 		elif isVd:
@@ -191,6 +177,24 @@ class CustomPythonLexer:
 			nameTag.text = isVrd.group(1)
 			dataTag = ET.SubElement(vrdTag, "data")
 			self.decodeInstruction(isVrd.group(2), dataTag)
+		elif isFd:
+			fdTag = ET.SubElement(parentElement, "fd")
+			typeTag = ET.SubElement(fdTag, "type")
+			typeTag.text = isFd.group(1)
+			nameTag = ET.SubElement(fdTag, "name")
+			nameTag.text = isFd.group(2)
+			paramsTag = ET.SubElement(fdTag, "params")
+			for i, param in enumerate(isFd.group(3).split(",")):
+				if param == "":
+					continue
+				param = self.stripSpaces(param)
+				currentParamTag = ET.SubElement(paramsTag, "_" + str(i))
+				currentTypeTag = ET.SubElement(currentParamTag, "type")
+				currentTypeTag.text = param.split(" ")[0]
+				currentNameTag = ET.SubElement(currentParamTag, "name")
+				currentNameTag.text = param.split(" ")[1]
+			dataTag = ET.SubElement(fdTag, "data")
+			return {"nest": 1, "tag": dataTag}
 		elif isArr:
 			arrTag = ET.SubElement(parentElement, "arr")
 			for element in isArr.group(1).split(","):
@@ -205,6 +209,8 @@ class CustomPythonLexer:
 				nameTag.text = isFunc2.group(1)
 				paramsTag = ET.SubElement(fcTag, "params")
 				for i, param in enumerate(isFunc2.group(2).split(",")):
+					if param == "":
+						continue
 					currentParamTag = ET.SubElement(paramsTag, "_" + str(i))
 					self.decodeInstruction(param, currentParamTag)
 				afterData = isFunc2.string[isFunc2.span()[1]:]

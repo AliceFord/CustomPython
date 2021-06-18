@@ -47,7 +47,7 @@ class Transpile:
 			typeName += ">"
 		return typeName
 
-	def transpileRecursive(self, tree, outer=False):
+	def transpileRecursive(self, tree, outer=False, betweenChar=None):
 		code = ""
 		excludeEnding = False
 		for ins in tree:
@@ -145,7 +145,7 @@ class Transpile:
 				code += "}"
 			elif ins.tag == "arr":
 				code += "{"
-				code += self.transpileRecursive(ins)
+				code += self.transpileRecursive(ins, False, ",")
 				code += "}"
 			elif ins.tag == "num":
 				code += ins.text
@@ -153,6 +153,9 @@ class Transpile:
 				code += ins.text
 			elif ins.tag == "str":
 				code += ins.text
+
+			if betweenChar is not None:
+				code += betweenChar
 
 		if outer and not excludeEnding:
 			code += ";\n"

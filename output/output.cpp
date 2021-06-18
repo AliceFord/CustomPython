@@ -1,12 +1,17 @@
 #include <bits/stdc++.h>
 
-int test(int p1,int p2) {
-return p1+p2;
+std::vector<std::string> test() {
+return {"hi","yo",};
 ;
 }
 
 
 int main() {
-std::cout << (test(2,3));
+std::vector<std::string> data = test();
+int i = 0;
+while (i<data.size()) {
+std::cout << (data[i]) << ("\n");
+i++;
+};
 
 }
