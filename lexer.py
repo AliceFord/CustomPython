@@ -21,7 +21,7 @@ class CustomPythonLexer:
 					break
 
 			for i, dp in enumerate(data):
-				data[i] = dp.replace("\n", "").replace("\t", "")
+				data[i] = dp.replace("\n", "").replace("\t", "").replace("    ", "")
 
 			nestCounter = 0
 			nestTag = None
@@ -83,7 +83,9 @@ class CustomPythonLexer:
 		self.is_vc = False
 		self.flags = ["num", "op", "str", "vc"]
 		self.startElem = -1
-		funcChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*?)\((.*)\)")
+		fdChecker = re.compile("(.*?) (.*?)\((.*?)\)")
+		funcChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*?)\((.*)\)$")
+		funcChecker2 = re.compile("([a-zA-Z][a-zA-Z0-9]*?)\((.*)\)")
 		vdChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*) ([a-zA-Z][a-zA-Z0-9]*)[ ]*=[ ]*(.*)")
 		vdarrChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*)\[\] ([a-zA-Z][a-zA-Z0-9]*)[ ]*=[ ]*(.*)")
 		vrdChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*)[ ]*=[ ]*(.*)")
@@ -91,9 +93,11 @@ class CustomPythonLexer:
 		ifChecker = re.compile("if[ ]+(.*)")
 		conditionalChecker = re.compile("([a-zA-Z][a-zA-Z0-9]*)[ ]*=[=]+?[ ]*(.*)")
 		arrChecker = re.compile("\[(.*)\]")
+		returnChecker = re.compile("return (.*)")
 
 		ins = ins.replace("True", "true").replace("False", "false")
 
+		isFd = fdChecker.match(ins)
 		isFunc = funcChecker.match(ins)
 		isVd = vdChecker.match(ins)
 		isVdarr = vdarrChecker.match(ins)
@@ -102,7 +106,24 @@ class CustomPythonLexer:
 		isIf = ifChecker.match(ins)
 		isConditional = conditionalChecker.match(ins)
 		isArr = arrChecker.match(ins)
-		if isWhile:
+		isReturn = returnChecker.match(ins)
+		if isFd:
+			fdTag = ET.SubElement(parentElement, "fd")
+			typeTag = ET.SubElement(fdTag, "type")
+			typeTag.text = isFd.group(1)
+			nameTag = ET.SubElement(fdTag, "name")
+			nameTag.text = isFd.group(2)
+			paramsTag = ET.SubElement(fdTag, "params")
+			for i, param in enumerate(isFd.group(3).split(",")):
+				param = self.stripSpaces(param)
+				currentParamTag = ET.SubElement(paramsTag, "_" + str(i))
+				currentTypeTag = ET.SubElement(currentParamTag, "type")
+				currentTypeTag.text = param.split(" ")[0]
+				currentNameTag = ET.SubElement(currentParamTag, "name")
+				currentNameTag.text = param.split(" ")[1]
+			dataTag = ET.SubElement(fdTag, "data")
+			return {"nest": 1, "tag": dataTag}
+		elif isWhile:
 			whileTag = ET.SubElement(parentElement, "while")
 			condTag = ET.SubElement(whileTag, "cond")
 			self.decodeInstruction(isWhile.group(1), condTag)
@@ -120,20 +141,30 @@ class CustomPythonLexer:
 				return {"nest": -1, "break": False, "tag": parentElement.getparent().getparent().getparent().getparent()}
 			except AttributeError:
 				return {"nest": -1, "break": False, "tag": "ignored"}
-		elif ins == "break":
-			breakTag = ET.SubElement(parentElement, "break")
 		elif ins == "endif":
 			parentElement.attrib["remove"] = ""
 			try:
 				return {"nest": -1, "break": False, "tag": parentElement.getparent().getparent().getparent().getparent()}
 			except AttributeError:
 				return {"nest": -1, "break": False, "tag": "ignored"}
+		elif ins == "endfunc":
+			parentElement.attrib["remove"] = ""
+			try:
+				return {"nest": -1, "break": False,
+						"tag": parentElement.getparent().getparent().getparent().getparent()}
+			except AttributeError:
+				return {"nest": -1, "break": False, "tag": "ignored"}
+		elif ins == "break":
+			breakTag = ET.SubElement(parentElement, "break")
+		elif isReturn:
+			returnTag = ET.SubElement(parentElement, "return")
+			self.decodeInstruction(isReturn.group(1), returnTag)
 		elif isFunc:
 			fcTag = ET.SubElement(parentElement, "fc")
 			nameTag = ET.SubElement(fcTag, "name")
 			nameTag.text = isFunc.group(1)
 			paramsTag = ET.SubElement(fcTag, "params")
-			for i, param in enumerate(isFunc.group(2).split(",")):
+			for i, param in enumerate(self.splitByOuterSymbol(isFunc.group(2), ",")):
 				currentParamTag = ET.SubElement(paramsTag, "_" + str(i))
 				self.decodeInstruction(param, currentParamTag)
 		elif isVd:
@@ -165,36 +196,85 @@ class CustomPythonLexer:
 			for element in isArr.group(1).split(","):
 				self.decodeInstruction(element, arrTag)
 		else:
-			for i, c in enumerate(ins):
-				if not self.is_str:
-					self.currentlyFound = False
-					try:
-						int(c)
-						if not self.is_vc:
-							self.foundElement("num", parentElement, ins, self.startElem, i)
-					except ValueError:
-						pass
+			isFunc2 = funcChecker2.search(ins)
+			if isFunc2:
+				beforeData = isFunc2.string[:isFunc2.span()[0]]
+				self.decodeInstruction(beforeData, parentElement)
+				fcTag = ET.SubElement(parentElement, "fc")
+				nameTag = ET.SubElement(fcTag, "name")
+				nameTag.text = isFunc2.group(1)
+				paramsTag = ET.SubElement(fcTag, "params")
+				for i, param in enumerate(isFunc2.group(2).split(",")):
+					currentParamTag = ET.SubElement(paramsTag, "_" + str(i))
+					self.decodeInstruction(param, currentParamTag)
+				afterData = isFunc2.string[isFunc2.span()[1]:]
+				self.decodeInstruction(afterData, parentElement)
+			else:
+				for i, c in enumerate(ins):
+					if not self.is_str:
+						self.currentlyFound = False
+						try:
+							int(c)
+							if not self.is_vc:
+								self.foundElement("num", parentElement, ins, self.startElem, i)
+						except ValueError:
+							pass
 
-					if c in ["+", "-", "*", "/", "<", ">", "=", "%"]:
-						self.foundElement("op", parentElement, ins, self.startElem, i)
+						if c in ["+", "-", "*", "/", "<", ">", "=", "%"]:
+							self.foundElement("op", parentElement, ins, self.startElem, i)
+						else:
+							pass
+
+						if not self.currentlyFound:
+							if c in string.ascii_letters + string.digits:
+								self.foundElement("vc", parentElement, ins, self.startElem, i)
+
+						if c == " ":
+							self.setAllFlagsExcept(None, parentElement, ins, self.startElem, i)
+
+					if c == "\"":
+						self.foundElement("str", parentElement, ins, self.startElem, i)
 					else:
 						pass
 
-					if not self.currentlyFound:
-						if c in string.ascii_letters + string.digits:
-							self.foundElement("vc", parentElement, ins, self.startElem, i)
-
-					if c == " ":
-						self.setAllFlagsExcept(None, parentElement, ins, self.startElem, i)
-
-				if c == "\"":
-					self.foundElement("str", parentElement, ins, self.startElem, i)
-				else:
-					pass
-
-			self.setAllFlagsExcept(None, parentElement, ins, self.startElem)
+				self.setAllFlagsExcept(None, parentElement, ins, self.startElem)
 
 		return {"nest": 0}
+
+	@staticmethod
+	def splitByOuterSymbol(val, symbol):
+		splitPos = []
+		outer = 0
+		for i, c in enumerate(val):
+			if c == "(":
+				outer += 1
+			elif c == ")":
+				outer -= 1
+			elif c == symbol:
+				if outer == 0:
+					splitPos.append(i)
+		output = []
+		for pos in splitPos:
+			output.append(val[:pos])
+			val = val[pos:]
+
+		output.append(val)
+
+		return output
+
+	@staticmethod
+	def stripSpaces(var):
+		match = re.match("[ ]*([A-Za-z0-9]*)[ ]*([A-Za-z0-9]*)[ ]*", var)
+		output = []
+		i = 1
+		while True:
+			try:
+				current = match.group(i)
+				output.append(current)
+				i += 1
+			except IndexError:
+				break
+		return " ".join(output)
 
 	def foundElement(self, flag, parent, ins, startRange, endRange):
 		self.setAllFlagsExcept(flag, parent, ins, startRange, endRange)

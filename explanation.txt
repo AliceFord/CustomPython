@@ -14,6 +14,7 @@ Tags:
 <vrd> - a variable redefinition, has just <name> and <data> tags.
 <op> - an operand (e.g. +, -, <<, >>, ^ etc)
 <fc> - a function call, always has <name> tag and <params> tag.
-<fd> - a function definition
+<fd> - a function definition, always has <type> (return type), <name>, <params> and <data> tags
 <while> - a while loop, contains <cond> and <data> tags.
 <if> - an if statement, contains <cond> and <data> tags (else if and else should be nested for now).
+<params> - always contains a list of elements numbered _0, _1 etc.
