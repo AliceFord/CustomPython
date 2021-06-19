@@ -1,9 +1,12 @@
 import xml.etree.ElementTree as ET
 import os
+import subprocess
+import time
 
-KNOWN_FUNCTIONS = {"print": "std::cout"}
+KNOWN_FUNCTIONS = {"print": "std::cout", "input": "std::cin"}
 KNOWN_DOT_FUNCTIONS = {"append": "push_back", "arrlen": "size"}
 LEFT_SHIFT_FUNCS = ["std::cout"]
+RIGHT_SHIFT_FUNCS = ["std::cin"]
 KNOWN_TYPES = {"string": "std::string"}
 
 
@@ -26,7 +29,7 @@ class Transpile:
 
 			f.write(output)
 
-	def run(self):
+	def run(self):  # Currently doesn't work with input, use makefile instead
 		print(os.popen("cd output & g++ output.cpp && a").read())
 
 	@staticmethod
@@ -55,11 +58,14 @@ class Transpile:
 				code += self.transpileRecursive(ins, True)
 			elif ins.tag == "fc":
 				useLeftShift = False
+				useRightShift = False
 				dotFunction = False
 				for key, val in KNOWN_FUNCTIONS.items():
 					if ins.find("name").text == key:
 						if val in LEFT_SHIFT_FUNCS:
 							useLeftShift = True
+						if val in RIGHT_SHIFT_FUNCS:
+							useRightShift = True
 						code += val
 						break
 				else:
@@ -73,6 +79,8 @@ class Transpile:
 
 				if useLeftShift:
 					code += " << ("
+				elif useRightShift:
+					code += " >> ("
 				else:
 					code += "("
 
@@ -85,15 +93,19 @@ class Transpile:
 					code += self.transpileRecursive(param)
 					if useLeftShift:
 						code += ") << ("
+					elif useRightShift:
+						code += ") >> ("
 					else:
 						code += ","
 
 				if paramUsed:
 					if useLeftShift:
 						code = code.rstrip(" << (")
+					elif useRightShift:
+						code = code.rstrip(" >> (")
 					else:
 						code = code.rstrip(",")
-				if not useLeftShift:
+				if not useLeftShift and not useRightShift:
 					code += ")"
 			elif ins.tag == "fd":
 				excludeEnding = True

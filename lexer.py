@@ -48,7 +48,7 @@ class CustomPythonLexer:
 		with open("test.xml", "wb") as f: f.write(ET.tostring(main, pretty_print=True))
 		return ET.tostring(main)
 
-	def placeForLoop(self, m: re.Match[string]):
+	def placeForLoop(self, m):
 		start = m.group(1) + ";\nwhile" + m.group(2)
 		message = m.string
 		message = message[:m.span()[0]] + start + message[m.span()[1]:]
